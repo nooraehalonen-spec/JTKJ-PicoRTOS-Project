@@ -79,7 +79,10 @@ static void sensor_task(void *arg)
 static void print_task(void *arg)
     {
         (void)arg;
-
+        init_rgb_led();
+        uint8_t max = 255;
+        uint8_t zero = 0;
+        uint8_t middle = 125;
         while (1)
         {
 
@@ -113,6 +116,12 @@ static void print_task(void *arg)
                 // Exercise 3. Just for sanity check. Please, comment this out
                 // Tehtävä 3: Just for sanity check. Please, comment this out
                 printf("%d \n", ambientLight);
+                if(ambientLight > 400){
+                    rgb_led_write(zero,max,zero);
+                }
+                else if(ambientLight < 400){
+                    rgb_led_write(max,zero,zero);
+                }
                 programState=WAITING;
 
                 // Do not remove this
@@ -154,7 +163,20 @@ int main()
         sleep_ms(10);
     }*/
 
-    init_hat_sdk();
+    init_ICM42670();
+
+
+    float *ax = 0;
+    float *ay = 0;
+    float *az = 0;
+    float *gx = 0;
+    float *gy = 0;
+    float *gz = 0;
+    float *t = 0;
+
+    int i = 0;
+    
+        init_hat_sdk();
     sleep_ms(300); // Wait some time so initialization of USB and hat is done.
 
     // Exercise 1: Initialize the button and the led and define an register the corresponding interrupton.
@@ -166,18 +188,24 @@ int main()
 
     gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, &btn_fxn);
 
+    while(i){
+    ICM42670_read_sensor_data(ax, ay, az, gx, gy, gz, t);
+    printf("%f %f %f %f %f %f/n",ax, ay, az, gx, gy, gz);
+    i++;
+    }
+/*
     TaskHandle_t hSensorTask, hPrintTask, hUSB = NULL;
 
     // Exercise 4: Uncomment this xTaskCreate to create the task that enables dual USB communication.
     // Tehtävä 4: Poista tämän xTaskCreate-rivin kommentointi luodaksesi tehtävän,
     // joka mahdollistaa kaksikanavaisen USB-viestinnän.
 
-    /*
+    
     xTaskCreate(usbTask, "usb", 2048, NULL, 3, &hUSB);
     #if (configNUMBER_OF_CORES > 1)
         vTaskCoreAffinitySet(hUSB, 1u << 0);
     #endif
-    */
+    
 
     // Create the tasks with xTaskCreate
     BaseType_t result = xTaskCreate(sensor_task,        // (en) Task function
@@ -207,7 +235,7 @@ int main()
 
     // Start the scheduler (never returns)
     vTaskStartScheduler();
-
+ */
     // Never reach this line.
     return 0;
 }
