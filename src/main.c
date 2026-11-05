@@ -17,6 +17,7 @@
 enum state { IDLE=1 };
 enum state programState = IDLE;
 
+//IMU:n yksittäiset arvot
 struct imu_data{
     float ax;
     float ay;
@@ -27,24 +28,36 @@ struct imu_data{
     float t;
 } imu_number;
 
-static void button(uint nappi, uint32_t event_mask){
-    if (nappi == BUTTON1){
-        if (-0.9 >= imu_number.ay && imu_number.ay >= -1){
+int spaces = 0;
+
+static void button(uint which_button, uint32_t event_mask){
+
+    //Tutkitaan kumpaa nappia painetaan, jos 1 tulkitaan asento ja siitä . tai -
+    if (which_button == BUTTON1){
+        if ((-0.9 >= imu_number.ay && imu_number.ay >= -1.1) || (0.9 <=imu_number.ay && imu_number.ay <= 1.1)){
                 printf(".");
             }
 
-            else if (0.9 <= imu_number.az && imu_number.az <= 1){
+            else if ((0.9 <= imu_number.az && imu_number.az <= 1.1) || (-1.1 <= imu_number.az && imu_number.az <= -0.9)){
                 printf("-");
             }
+        
+        spaces = 0;
     }
 
+    //Jos 2 nappi, tulostaa välilyönnin
     else{
-        printf(" ");
-    }
-}
+        //Laskee välilyöntien määrän, jos 3, tulostaa rivinvaihtomerkin.
+        spaces += 1;
 
-static void button2(){
-    printf(" ");
+        if (spaces < 3){
+            printf(" ");
+        }
+
+        else{
+            printf("\n");
+        }
+    }
 }
 
 static void example_task(void *arg)
@@ -53,13 +66,15 @@ static void example_task(void *arg)
     init_ICM42670();
 
     ICM42670_start_with_default_values();
-    ICM42670_start_with_default_values();
+
  
     for (;;)
     {
         tight_loop_contents(); // Modify with application code here.
+
+        //IMU tulkitsee asennot ja sijoittaa ne structiin
         ICM42670_read_sensor_data(&imu_number.ax, &imu_number.ay, &imu_number.az, &imu_number.gx, &imu_number.gy, &imu_number.gz, &imu_number.t);
-        //printf("%f %f %f %f %f %f \n", ax, ay, az, gx, gy, gz);
+        //printf("%f %f %f %f %f %f \n", imu_number.ax, imu_number.ay, imu_number.az, imu_number.gx, imu_number.gy, imu_number.gz);
 
         
         vTaskDelay(pdMS_TO_TICKS(2000));
