@@ -193,7 +193,7 @@ int main() {
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_FALL, true, &button);
 
     
-
+ 
 
     TaskHandle_t imuTask, printTask = NULL;
     // Create the tasks with xTaskCreate
