@@ -13,9 +13,36 @@
 // Default stack size for the tasks. It can be reduced to 1024 if task is not using lot of memory.
 #define DEFAULT_STACK_SIZE 2048 
 
+//this buffer if for later traslation function (morse code to text)
+#define INPUT_BUFFER_SIZE 256
+
 //Add here necessary states
-enum state { IDLE=1 };
+enum state { IDLE=1, INPUT, TRANSLATE };
 enum state programState = IDLE;
+
+//task that receives input from terminal and determines the state
+/*
+static void task_from_terminal(void *arg){
+    (void)arg;
+    while(1){
+        if (programState == IDLE){
+            int c = getchar_timeout_us(0);
+            if (c == '\n'|| c == '\r'){
+                programState = INPUT;
+            }
+            else if( c == 't'){
+                programState = TRANSLATE;
+            }
+            //else if( c == 'somethingelse'){
+            //    programState = somethingelse;
+            //}
+            else {
+                vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
+            }
+        }
+    }
+}
+*/ 
 
 //IMU:n yksittäiset arvot
 struct imu_data{
@@ -31,6 +58,9 @@ struct imu_data{
 int spaces = 0;
 
 static void button(uint which_button, uint32_t event_mask){
+
+    //while(1){
+    //if(programState == INPUT){
 
     //Tutkitaan kumpaa nappia painetaan, jos 1 tulkitaan asento ja siitä . tai -
     if (which_button == BUTTON1){
@@ -56,8 +86,11 @@ static void button(uint which_button, uint32_t event_mask){
 
         else{
             printf("\n");
+            //programState = IDLE
         }
     }
+    //}
+    //}
 }
 
 static void example_task(void *arg)
