@@ -17,7 +17,7 @@
 #define INPUT_BUFFER_SIZE 256
 
 //Add here necessary states
-enum state { IDLE=1, INPUT, DISLPAY};
+enum state { IDLE=1, INPUT, TRANSLATE };
 enum state programState = IDLE;
 
 //task that receives input from terminal and determines the state
@@ -30,15 +30,15 @@ static void task_from_terminal(void *arg){
             if (c == '\n'|| c == '\r'){
                 programState = INPUT;
             }
-            else if( c == 'd'){
-                programState = DISPLAY;
+            else if( c == 't'){
+                programState = TRANSLATE;
             }
             //else if( c == 'somethingelse'){
             //    programState = somethingelse;
             //}
             else {
+                vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
             }
-            vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
         }
     }
 }
@@ -56,48 +56,65 @@ struct imu_data{
 } imu_number;
 
 int spaces = 0;
+char sending_message[5000];
 
 static void button(uint which_button, uint32_t event_mask){
-
-    //while(1){
-    //if(programState == INPUT){
+    //funktio joka lähettää sanat
+    // Noora  
 
     //Tutkitaan kumpaa nappia painetaan, jos 1 tulkitaan asento ja siitä . tai -
     if (which_button == BUTTON1){
-        if ((-0.9 >= imu_number.ay && imu_number.ay >= -1.1) || (0.9 <=imu_number.ay && imu_number.ay <= 1.1)){
-                printf(".");
+        if ((-0.85 >= imu_number.ay && imu_number.ay >= -1.15) || (0.85 <=imu_number.ay && imu_number.ay <= 1.15)){
+                //printf(".");
+                //lisää listan perälle .
+                strcat(sending_message, ".");
+                                
             }
 
-            else if ((0.9 <= imu_number.az && imu_number.az <= 1.1) || (-1.1 <= imu_number.az && imu_number.az <= -0.9)){
-                printf("-");
+            else if ((0.85 <= imu_number.az && imu_number.az <= 1.15) || (-1.15 <= imu_number.az && imu_number.az <= -0.85)){
+                //printf("-");
+                //lisää listan perälle -
+                strcat(sending_message, "-");
             }
         
+        //nollataan välilyöntilaskuri
         spaces = 0;
     }
 
     //Jos 2 nappi, tulostaa välilyönnin
     else{
-        //Laskee välilyöntien määrän, jos 3, tulostaa rivinvaihtomerkin.
+        //Laskee välilyöntien määrän, jos 3, tulostaa rivinvaihtomerkin ja tulostaa koko listan kerralla.
         spaces += 1;
 
         if (spaces < 3){
-            printf(" ");
+            //printf(" ");
+            strcat(sending_message, " ");
         }
 
         else{
-            printf("\n");
-            //programState = IDLE
+            //printf("\n");
+            strcat(sending_message, "\n");
+
+            printf(sending_message);
+
+            //tyhjennetään lista
+            strcpy(sending_message, "");
         }
+
+
+            //programState = IDLE
     }
-    //}
-    //}
 }
+    //}https://github.com/nooraehalonen-spec/JTKJ-PicoRTOS-Project.git
+    //}
+
 
 static void example_task(void *arg)
 {
     (void)arg;
-    init_ICM42670();
 
+    //alustetaan IMU, Noora
+    init_ICM42670();
     ICM42670_start_with_default_values();
 
  
@@ -105,7 +122,7 @@ static void example_task(void *arg)
     {
         tight_loop_contents(); // Modify with application code here.
 
-        //IMU tulkitsee asennot ja sijoittaa ne structiin
+        //IMU tulkitsee asennot ja sijoittaa ne structiin, Noora
         ICM42670_read_sensor_data(&imu_number.ax, &imu_number.ay, &imu_number.az, &imu_number.gx, &imu_number.gy, &imu_number.gz, &imu_number.t);
         //printf("%f %f %f %f %f %f \n", imu_number.ax, imu_number.ay, imu_number.az, imu_number.gx, imu_number.gy, imu_number.gz);
 
@@ -116,21 +133,19 @@ static void example_task(void *arg)
 
 int main() {
     stdio_init_all();
-    // Uncomment this lines if you want to wait till the serial monitor is connected
+    // Uncomment this lines if you want tomääritellään wait till the serial monitor is connected
     /*while (!stdio_usb_connected()){
         sleep_ms(10);
     }*/ 
     init_hat_sdk();
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
 
-    //init_display();ssd1306_init();
-
+    //alustetaan napit, Noora
     init_button1();
-
     init_button2();
-        
-    gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, &button);
     
+    //Nappien painamisesta siirrytään "button"-funktioon, Noora
+    gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, &button);
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_FALL, true, &button);
 
     

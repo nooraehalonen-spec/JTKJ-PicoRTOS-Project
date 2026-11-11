@@ -149,7 +149,9 @@ int main()
     //             Instead, add AT THE END OF MAIN (before vTaskStartScheduler();) adequate statements to enable the TinyUSB library and the usb-serial-debug.
     //             You can see hello_dual_cdc for help
     //             In CMakeLists.txt add usb_serial_debug to target_link_libraries.
-    //             In CMakeLists.txt deactivate pico_enable_stdio_usb
+    //             In CMakeLists.txt deactiv    init_ICM42670();
+
+ate pico_enable_stdio_usb
     // Tehtävä 4:  Kommentoi lause stdio_init_all();
     //             Sen sijaan lisää MAIN LOPPUUN (ennen vTaskStartScheduler();) tarvittavat komennot aktivoidaksesi TinyUSB-kirjaston ja usb-serial-debugin.
     //             Voit katsoa apua esimerkistä hello_dual_cdc.

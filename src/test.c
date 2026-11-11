@@ -93,7 +93,7 @@ static void button(uint which_button){
 			}
         }
     }
-}
+
 
 static void example_task(void *arg)
 {
