@@ -17,7 +17,7 @@
 #define INPUT_BUFFER_SIZE 256
 
 //Add here necessary states
-enum state { IDLE=1, INPUT, TRANSLATE };
+enum state { IDLE=1, INPUT, DISLPAY};
 enum state programState = IDLE;
 
 //task that receives input from terminal and determines the state
@@ -30,15 +30,15 @@ static void task_from_terminal(void *arg){
             if (c == '\n'|| c == '\r'){
                 programState = INPUT;
             }
-            else if( c == 't'){
-                programState = TRANSLATE;
+            else if( c == 'd'){
+                programState = DISPLAY;
             }
             //else if( c == 'somethingelse'){
             //    programState = somethingelse;
             //}
             else {
-                vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
             }
+            vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
         }
     }
 }
@@ -122,6 +122,8 @@ int main() {
     }*/ 
     init_hat_sdk();
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
+
+    //init_display();ssd1306_init();
 
     init_button1();
 
