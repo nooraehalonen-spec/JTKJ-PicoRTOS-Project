@@ -17,7 +17,7 @@
 #define INPUT_BUFFER_SIZE 256
 
 //hidastin, ettei nappeja paineta useampaa kertaa
-#define BUTTON_TIMER_MS 300
+#define BUTTON_TIMER_MS 100
 
 //Add here necessary states
 enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE };
@@ -47,7 +47,7 @@ static void task_from_terminal(void *arg){
 }
 */ 
 
-//IMU:n yksittäiset arvot
+//IMU:n tietorakenne, johon arvot tallennetaan
 struct imu_data{
     float ax;
     float ay;
@@ -63,7 +63,6 @@ int spaces = 0;
 char sending_message[5000];
 
 static void button(uint which_button, uint32_t event_mask){
-    //funktio joka lähettää sanat
     // Noora  
     
     TickType_t current_time = xTaskGetTickCount();
@@ -77,9 +76,10 @@ static void button(uint which_button, uint32_t event_mask){
 
 
     //Tutkitaan kumpaa nappia painetaan, jos 1 tulkitaan asento ja siitä . tai -
-    if (which_button == BUTTON1){
+    if (which_button == BUTTON1){;
         programState = DOTDASH;
         
+        //nollataan välilyönnit
         spaces = 0;
     }
 
@@ -95,39 +95,46 @@ static void button(uint which_button, uint32_t event_mask){
             }
         
         else{
-            programState =SENDING;
+            programState = SENDING;
         }
+    }
 }
 
+/*
+Ottaa mittauksen imu-anturista ja tulostaa sen perusteella "." tai "-". 
+Tulostaa myös välilyönnin ja rivinvaihdon. 
+*/
 static void print_task(){
 
-    //Funktio, joka tulostaa pisteet/viivat/välilyönnit
+    //yksittäiset printf ovat debuggaamista varten.
     //Noora
     for(;;){
-        if(programState == DOTDASH)
+
+        if(programState == DOTDASH){
+
           if ((-0.85 >= imu_number.ay && imu_number.ay >= -1.15) || (0.85 <=imu_number.ay && imu_number.ay <= 1.15)){
-                //printf(".");
+                printf(".");
                 //lisää listan perälle .
                 strcat(sending_message, ".");
                                 
             }
 
             else if ((0.85 <= imu_number.az && imu_number.az <= 1.15) || (-1.15 <= imu_number.az && imu_number.az <= -0.85)){
-                //printf("-");
+                printf("-");
                 //lisää listan perälle -
                 strcat(sending_message, "-");
             }
 
-            vTaskDelay(pdMS_TO_TICKS(2000));
+        }
 
         if (programState == SPACE){
 
-                //printf(" ");
+                printf(" ");
                 strcat(sending_message, " ");
                 }
 
         if (programState == SENDING){
-                //printf("\n");
+                printf("\n");
                 strcat(sending_message, "\n");
 
                 printf(sending_message);
@@ -137,13 +144,13 @@ static void print_task(){
                 //tyhjennetään lista
                 strcpy(sending_message, "");
 
-
-                //vaihdetaan tilakone takaisin odotukseen, kun koko sana lähetetty
-                programState = IDLE;
                 }
+            
+            //vaihdetaan tilakone takaisin odotukseen, kun koko sana lähetetty
+            programState = IDLE;
+            vTaskDelay(pdMS_TO_TICKS(1000));
             }
         }
-}
 
 
 //}https://github.com/nooraehalonen-spec/JTKJ-PicoRTOS-Project.git
@@ -151,6 +158,11 @@ static void print_task(){
 
 /*
 VASTAANOTTOFUNKTIO
+*/
+
+
+/*
+Tallentaa imu-dataa imu_number tietorakenteeseen.
 */
 
 static void imu_task(void *arg)
@@ -193,12 +205,12 @@ int main() {
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_FALL, true, &button);
 
     
- 
+
 
     TaskHandle_t imuTask, printTask = NULL;
     // Create the tasks with xTaskCreate
     BaseType_t result = xTaskCreate(imu_task,       // (en) Task function
-                "example",                          // (en) Name of the task 
+                "imu",                              // (en) Name of the task 
                 DEFAULT_STACK_SIZE,                 // (en) Size of the stack for this task (in words). Generally 1024 or 2048
                 NULL,                               // (en) Arguments of the task 
                 2,                                  // (en) Priority of this task
@@ -210,7 +222,7 @@ int main() {
     }
 
     result = xTaskCreate(print_task,       // (en) Task function
-                "example",                 // (en) Name of the task 
+                "print",                   // (en) Name of the task 
                 DEFAULT_STACK_SIZE,        // (en)  Size of the stack for this task (in words). Generally 1024 or 2048
                 NULL,                      // (en) Arguments of the task 
                 2,                         // (en) Priority of this task
