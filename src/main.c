@@ -16,8 +16,11 @@
 //this buffer if for later traslation function (morse code to text)
 #define INPUT_BUFFER_SIZE 256
 
+//hidastin, ettei nappeja paineta useampaa kertaa
+#define BUTTON_TIMER_MS 300
+
 //Add here necessary states
-enum state { IDLE=1, INPUT, TRANSLATE };
+enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE };
 enum state programState = IDLE;
 
 //task that receives input from terminal and determines the state
@@ -55,16 +58,54 @@ struct imu_data{
     float t;
 } imu_number;
 
+TickType_t last_button_press = 0;
 int spaces = 0;
 char sending_message[5000];
 
 static void button(uint which_button, uint32_t event_mask){
     //funktio joka lähettää sanat
     // Noora  
+    
+    TickType_t current_time = xTaskGetTickCount();
+
+    //Tarkistetaan kauanko edellisestä painalluksesta
+    if ((current_time - last_button_press) < pdMS_TO_TICKS(BUTTON_TIMER_MS)){
+        return;
+    }
+
+    last_button_press = current_time;
+
 
     //Tutkitaan kumpaa nappia painetaan, jos 1 tulkitaan asento ja siitä . tai -
     if (which_button == BUTTON1){
-        if ((-0.85 >= imu_number.ay && imu_number.ay >= -1.15) || (0.85 <=imu_number.ay && imu_number.ay <= 1.15)){
+        programState = DOTDASH;
+        
+        spaces = 0;
+    }
+
+    //Jos 2 nappi, tulostaa välilyönnin
+    else{
+
+        //Laskee välilyöntien määrän, jos 3, tulostaa rivinvaihtomerkin ja tulostaa koko listan kerralla.
+        spaces += 1;
+
+        if (spaces < 3){
+            programState = SPACE;
+    
+            }
+        
+        else{
+            programState =SENDING;
+        }
+}
+
+static void print_task(){
+
+    //Funktio, joka tulostaa pisteet/viivat/välilyönnit
+    //Noora
+    for(;;){
+        if(programState == DOTDASH)
+          if ((-0.85 >= imu_number.ay && imu_number.ay >= -1.15) || (0.85 <=imu_number.ay && imu_number.ay <= 1.15)){
                 //printf(".");
                 //lisää listan perälle .
                 strcat(sending_message, ".");
@@ -76,40 +117,43 @@ static void button(uint which_button, uint32_t event_mask){
                 //lisää listan perälle -
                 strcat(sending_message, "-");
             }
-        
-        //nollataan välilyöntilaskuri
-        spaces = 0;
-    }
 
-    //Jos 2 nappi, tulostaa välilyönnin
-    else{
-        //Laskee välilyöntien määrän, jos 3, tulostaa rivinvaihtomerkin ja tulostaa koko listan kerralla.
-        spaces += 1;
+            vTaskDelay(pdMS_TO_TICKS(2000));
 
-        if (spaces < 3){
-            //printf(" ");
-            strcat(sending_message, " ");
+        if (programState == SPACE){
+
+                //printf(" ");
+                strcat(sending_message, " ");
+                }
+
+        if (programState == SENDING){
+                //printf("\n");
+                strcat(sending_message, "\n");
+
+                printf(sending_message);
+
+                printf("Message sent.");
+
+                //tyhjennetään lista
+                strcpy(sending_message, "");
+
+
+                //vaihdetaan tilakone takaisin odotukseen, kun koko sana lähetetty
+                programState = IDLE;
+                }
+            }
         }
-
-        else{
-            //printf("\n");
-            strcat(sending_message, "\n");
-
-            printf(sending_message);
-
-            //tyhjennetään lista
-            strcpy(sending_message, "");
-        }
-
-
-            //programState = IDLE
-    }
 }
-    //}https://github.com/nooraehalonen-spec/JTKJ-PicoRTOS-Project.git
-    //}
 
 
-static void example_task(void *arg)
+//}https://github.com/nooraehalonen-spec/JTKJ-PicoRTOS-Project.git
+//}
+
+/*
+VASTAANOTTOFUNKTIO
+*/
+
+static void imu_task(void *arg)
 {
     (void)arg;
 
@@ -151,19 +195,26 @@ int main() {
     
 
 
-    TaskHandle_t myExampleTask = NULL;
+    TaskHandle_t imuTask, printTask = NULL;
     // Create the tasks with xTaskCreate
-    BaseType_t result = xTaskCreate(example_task,       // (en) Task function
-                "example",              // (en) Name of the task 
-                DEFAULT_STACK_SIZE, // (en) Size of the stack for this task (in words). Generally 1024 or 2048
-                NULL,               // (en) Arguments of the task 
-                2,                  // (en) Priority of this task
-                &myExampleTask);    // (en) A handle to control the execution of this task
+    BaseType_t result = xTaskCreate(imu_task,       // (en) Task function
+                "example",                          // (en) Name of the task 
+                DEFAULT_STACK_SIZE,                 // (en) Size of the stack for this task (in words). Generally 1024 or 2048
+                NULL,                               // (en) Arguments of the task 
+                2,                                  // (en) Priority of this task
+                &imuTask);                          // (en) A handle to control the execution of this task
 
     if(result != pdPASS) {
         printf("Example Task creation failed\n");
         return 0;
     }
+
+    result = xTaskCreate(print_task,       // (en) Task function
+                "example",                 // (en) Name of the task 
+                DEFAULT_STACK_SIZE,        // (en)  Size of the stack for this task (in words). Generally 1024 or 2048
+                NULL,                      // (en) Arguments of the task 
+                2,                         // (en) Priority of this task
+                &printTask);               // (en) A handle to control the execution of this task
 
     // Start the scheduler (never returns)
     vTaskStartScheduler();
