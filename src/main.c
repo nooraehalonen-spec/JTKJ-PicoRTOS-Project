@@ -70,7 +70,7 @@ static void receive_task(void *arg){
         if (programState == INPUT){
             int c = getchar_timeout_us(0);
             if (c != PICO_ERROR_TIMEOUT){
-                if (c != '.'&& c  != '-' && c != '\n' || index >= 4){
+                if (c != '.'&& c  != '-' && c != '\n' && c != ' ' || index >= 4){
                     printf("invalid input, reset \n");
                     index = 0;
                     programState = IDLE;
