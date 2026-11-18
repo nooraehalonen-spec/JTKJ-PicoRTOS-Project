@@ -19,33 +19,84 @@
 //hidastin, ettei nappeja paineta useampaa kertaa
 #define BUTTON_TIMER_MS 100
 
+char morse_message[5];
 //Add here necessary states
-enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE };
+enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE, DISPLAY, LED };
 enum state programState = IDLE;
 
-//task that receives input from terminal and determines the state
-/*
-static void task_from_terminal(void *arg){
+static void receive_task(void *arg){
     (void)arg;
-    while(1){
+    char line[INPUT_BUFFER_SIZE];
+    size_t index = 0;
+    
+    while (1){
         if (programState == IDLE){
             int c = getchar_timeout_us(0);
-            if (c == '\n'|| c == '\r'){
-                programState = INPUT;
+            if (c != PICO_ERROR_TIMEOUT){// I have received a character
+                if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
+                if (c == '\n'){
+                    // terminate and process the collected line
+                    line[index] = '\0';
+                        if (strcmp(line, "display") == 0) {
+                            programState = DISPLAY;
+                        }
+                        else if (strcmp(line, "led") == 0) {
+                            programState = LED ;
+                        }
+                        else if (strcmp(line, "input") == 0) {
+                            printf("input your message: \n");
+                            programState = INPUT;
+                        }
+                        else {
+                            programState = IDLE;
+                        }
+                    index = 0;
+                    vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
+                }
+                else if(index < INPUT_BUFFER_SIZE - 1){
+                line[index++] = (char)c;
+                }    
+                else { //Overflow: print and restart the buffer with the new character. 
+                    line[INPUT_BUFFER_SIZE - 1] = '\0';
+                    printf("__[RX]:\"%s\"__\n", line);
+                    index = 0; 
+                    line[index++] = (char)c; 
+                }
             }
-            else if( c == 't'){
-                programState = TRANSLATE;
+            else {
+                vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
             }
-            //else if( c == 'somethingelse'){
-            //    programState = somethingelse;
-            //}
+        }
+        if (programState == INPUT){
+            int c = getchar_timeout_us(0);
+            if (c != PICO_ERROR_TIMEOUT){
+                if (c != '.'&& c  != '-' && c != '\n' || index >= 4){
+                    printf("invalid input, reset \n");
+                    index = 0;
+                    programState = IDLE;
+                }
+                else if (c == '\n') {
+                    if (index == 4) {
+                        line[index] = '\0';
+                        strcpy(morse_message, line);
+                        programState = IDLE;
+                        index = 0;
+                    }
+                    else {
+                        printf("Need exactly 4 symbols\n");
+                    }
+                }
+                else if(index < 4){
+                line[index++] = (char)c;
+                }
+            }
             else {
                 vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
             }
         }
     }
 }
-*/ 
+
 
 //IMU:n tietorakenne, johon arvot tallennetaan
 struct imu_data{
@@ -200,12 +251,20 @@ int main() {
     init_button1();
     init_button2();
     
+    init_display();
     //Nappien painamisesta siirrytään "button"-funktioon, Noora
     gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, &button);
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_FALL, true, &button);
 
     
-
+    BaseType_t receive = xTaskCreate(
+        receive_task,
+        "input",
+        DEFAULT_STACK_SIZE,
+        NULL,
+        2,
+        &receive_task
+    );
 
     TaskHandle_t imuTask, printTask = NULL;
     // Create the tasks with xTaskCreate
