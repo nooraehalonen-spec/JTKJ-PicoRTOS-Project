@@ -32,8 +32,10 @@ static void receive_task(void *arg){
     while (1){
         if (programState == IDLE){
             int c = getchar_timeout_us(0);
+
             if (c != PICO_ERROR_TIMEOUT){// I have received a character
                 if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
+                
                 if (c == '\n'){
                     // terminate and process the collected line
                     line[index] = '\0';
@@ -53,9 +55,11 @@ static void receive_task(void *arg){
                     index = 0;
                     vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
                 }
+
                 else if(index < INPUT_BUFFER_SIZE - 1){
                 line[index++] = (char)c;
                 }    
+
                 else { //Overflow: print and restart the buffer with the new character. 
                     line[INPUT_BUFFER_SIZE - 1] = '\0';
                     printf("__[RX]:\"%s\"__\n", line);
@@ -63,18 +67,22 @@ static void receive_task(void *arg){
                     line[index++] = (char)c; 
                 }
             }
+
+
             else {
                 vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
             }
         }
         if (programState == INPUT){
             int c = getchar_timeout_us(0);
+
             if (c != PICO_ERROR_TIMEOUT){
                 if (c != '.'&& c  != '-' && c != '\n' && c != ' ' || index >= 4){
                     printf("invalid input, reset \n");
                     index = 0;
                     programState = IDLE;
                 }
+
                 else if (c == '\n') {
                     if (index == 4) {
                         line[index] = '\0';
@@ -82,14 +90,17 @@ static void receive_task(void *arg){
                         programState = IDLE;
                         index = 0;
                     }
+
                     else {
                         printf("Need exactly 4 symbols\n");
                     }
                 }
+
                 else if(index < 4){
                 line[index++] = (char)c;
                 }
             }
+
             else {
                 vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
             }
@@ -192,7 +203,7 @@ static void print_task(){
 
                 printf("Message sent.");
 
-                //tyhjennetään lista
+                //tyhjennetään lista 
                 strcpy(sending_message, "");
 
                 }
@@ -206,10 +217,6 @@ static void print_task(){
 
 //}https://github.com/nooraehalonen-spec/JTKJ-PicoRTOS-Project.git
 //}
-
-/*
-VASTAANOTTOFUNKTIO
-*/
 
 
 /*
@@ -252,22 +259,23 @@ int main() {
     init_button2();
     
     init_display();
+    
     //Nappien painamisesta siirrytään "button"-funktioon, Noora
     gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, &button);
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_FALL, true, &button);
 
-    
+
+    TaskHandle_t imuTask, printTask, receiveTask = NULL;
+
     BaseType_t receive = xTaskCreate(
         receive_task,
         "input",
         DEFAULT_STACK_SIZE,
         NULL,
         2,
-        &receive_task
+        &receiveTask
     );
 
-    TaskHandle_t imuTask, printTask = NULL;
-    // Create the tasks with xTaskCreate
     BaseType_t result = xTaskCreate(imu_task,       // (en) Task function
                 "imu",                              // (en) Name of the task 
                 DEFAULT_STACK_SIZE,                 // (en) Size of the stack for this task (in words). Generally 1024 or 2048
@@ -276,7 +284,7 @@ int main() {
                 &imuTask);                          // (en) A handle to control the execution of this task
 
     if(result != pdPASS) {
-        printf("Example Task creation failed\n");
+        printf("Task creation failed\n");
         return 0;
     }
 
