@@ -108,6 +108,20 @@ static void receive_task(void *arg){
     }
 }
 
+static void display_task(void *arg)
+{
+    (void)arg;
+    init_display();
+    while (1){
+        if (programState == DISPLAY){
+            write_text(morse_message);
+            programState = IDLE;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
 
 //IMU:n tietorakenne, johon arvot tallennetaan
 struct imu_data{
@@ -258,14 +272,14 @@ int main() {
     init_button1();
     init_button2();
     
-    init_display();
+    
     
     //Nappien painamisesta siirrytään "button"-funktioon, Noora
     gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, &button);
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_FALL, true, &button);
 
 
-    TaskHandle_t imuTask, printTask, receiveTask = NULL;
+    TaskHandle_t imuTask, printTask, receiveTask , displayTask = NULL;
 
     BaseType_t receive = xTaskCreate(
         receive_task,
@@ -273,8 +287,15 @@ int main() {
         DEFAULT_STACK_SIZE,
         NULL,
         2,
-        &receiveTask
-    );
+        &receiveTask);
+
+    BaseType_t display = xTaskCreate(
+        display_task,
+        "output",
+        DEFAULT_STACK_SIZE,
+        NULL,
+        2,
+        &displayTask);
 
     BaseType_t result = xTaskCreate(imu_task,       // (en) Task function
                 "imu",                              // (en) Name of the task 
