@@ -197,13 +197,16 @@ static void print_task(){
                 //lisää listan perälle -
                 strcat(sending_message, "-");
             }
-
+            programState = IDLE;
         }
 
         if (programState == SPACE){
 
                 printf(" ");
                 strcat(sending_message, " ");
+
+                programState = IDLE;
+
                 }
 
         if (programState == SENDING){
@@ -217,10 +220,12 @@ static void print_task(){
                 //tyhjennetään lista 
                 strcpy(sending_message, "");
 
+                programState = IDLE;
+
                 }
             
             //vaihdetaan tilakone takaisin odotukseen, kun koko sana lähetetty
-            programState = IDLE;
+            
             vTaskDelay(pdMS_TO_TICKS(1000));
             }
         }
