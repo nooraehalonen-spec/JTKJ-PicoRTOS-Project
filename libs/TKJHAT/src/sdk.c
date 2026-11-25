@@ -366,7 +366,7 @@ void write_text(const char *text) {
     if (!text)return;
 
     // Draw the text at the specified position with a font size of 2
-    ssd1306_draw_string(&disp, 8, 24, 2, text);
+    ssd1306_draw_string(&disp, 8, 24, 1, text);
 
     // Update the display
     ssd1306_show(&disp);

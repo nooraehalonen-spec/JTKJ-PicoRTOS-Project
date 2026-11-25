@@ -19,7 +19,7 @@
 //hidastin, ettei nappeja paineta useampaa kertaa
 #define BUTTON_TIMER_MS 100
 
-char morse_message[5];
+char morse_message[256];
 //Add here necessary states
 enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE, DISPLAY, LED };
 enum state programState = IDLE;
@@ -28,80 +28,36 @@ static void receive_task(void *arg){
     (void)arg;
     char line[INPUT_BUFFER_SIZE];
     size_t index = 0;
-    
-    while(1){
+    if (programState == IDLE){
+    while (1){
+        
         int c = getchar_timeout_us(0);
-
-        if (c != PICO_ERROR_TIMEOUT){
-            if (programState == IDLE){
-                //if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
+        if (c != PICO_ERROR_TIMEOUT){// I have received a character
+            if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
+            if (c == '\n'){
                 
-                if (c == '\n'){
-                    // terminate and process the collected line
-                    line[index] = '\0';
-                        if (strcmp(line, "led") == 0) {
-                            printf("programState lED \n");
-                            programState = LED ;
-                        }
-                        else if (strcmp(line, "input") == 0) {
-                            printf("input your message: \n");
-                            programState = INPUT;
-                        }
-                        else {
-                            printf("command is not recognised \n");
-                            programState = IDLE;
-                        }
-                        index = 0;
-                }
-
-                else if(index < INPUT_BUFFER_SIZE - 1){
-                line[index++] = (char)c;
-                }    
-
-                else { //Overflow: print and restart the buffer with the new character. 
-                    line[INPUT_BUFFER_SIZE - 1] = '\0';
-                    printf("__[RX]:\"%s\"__\n", line);
-                    index = 0; 
-                    line[index++] = (char)c; 
-                }
+                
+                // terminate and process the collected line
+                line[index] = '\0'; 
+                strcpy(morse_message, line);
+                index = 0; // Wait for new message
+                programState = DISPLAY;
             }
-            else if (programState == INPUT){
-                //if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
-                
-                if (c == '.' || c == '-'){
-                    if (index < 4){
-                        line[index++] = (char)c;
-                    }
-                    else{
-                        printf("too many symbols\n");
-                        index = 0;
-                        programState = IDLE;
-                    }
-                }
-                else if (c == '\n'){
-                    if (index == 4){
-                    line[index] = '\0';
-                    strcpy(morse_message, line);
-                    index = 0;
-                    programState = DISPLAY;
-                    }
-                    else{
-                        printf("Need exactly 4 symbols\n");
-                        index = 0;
-                    }
-                }
-                else{
-                    printf("invalid input, reset \n");
-                    index = 0;
-                    programState = IDLE;
-                }
+            else if(index < INPUT_BUFFER_SIZE - 1){
+                line[index++] = (char)c;
+            }
+            else { //Overflow: print and restart the buffer with the new character. 
+                line[INPUT_BUFFER_SIZE - 1] = '\0';
+                printf("__[RX]:\"%s\"__\n", line);
+                index = 0; 
+                line[index++] = (char)c; 
             }
         }
-
-    vTaskDelay(pdMS_TO_TICKS(100));
+        else {
+            vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
+        }
     }
-
-}
+}}
 
 static void display_task(void *arg){
     (void)arg;
@@ -181,6 +137,7 @@ static void print_task(){
 
     //yksittäiset printf ovat debuggaamista varten.
     //Noora
+
     for(;;){
 
         if(programState == DOTDASH){
@@ -189,6 +146,7 @@ static void print_task(){
                 printf(".");
                 //lisää listan perälle .
                 strcat(sending_message, ".");
+                programState = IDLE;
                                 
             }
 
@@ -196,8 +154,9 @@ static void print_task(){
                 printf("-");
                 //lisää listan perälle -
                 strcat(sending_message, "-");
+                programState = IDLE;
             }
-            programState = IDLE;
+
         }
 
         if (programState == SPACE){
