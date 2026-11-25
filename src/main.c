@@ -29,20 +29,18 @@ static void receive_task(void *arg){
     char line[INPUT_BUFFER_SIZE];
     size_t index = 0;
     
-    while (1){
-        if (programState == IDLE){
-            int c = getchar_timeout_us(0);
+    while(1){
+        int c = getchar_timeout_us(0);
 
-            if (c != PICO_ERROR_TIMEOUT){// I have received a character
-                if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
+        if (c != PICO_ERROR_TIMEOUT){
+            if (programState == IDLE){
+                //if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
                 
                 if (c == '\n'){
                     // terminate and process the collected line
                     line[index] = '\0';
-                        if (strcmp(line, "display") == 0) {
-                            programState = DISPLAY;
-                        }
-                        else if (strcmp(line, "led") == 0) {
+                        if (strcmp(line, "led") == 0) {
+                            printf("programState lED \n");
                             programState = LED ;
                         }
                         else if (strcmp(line, "input") == 0) {
@@ -50,10 +48,10 @@ static void receive_task(void *arg){
                             programState = INPUT;
                         }
                         else {
+                            printf("command is not recognised \n");
                             programState = IDLE;
                         }
-                    index = 0;
-                    vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
+                        index = 0;
                 }
 
                 else if(index < INPUT_BUFFER_SIZE - 1){
@@ -67,54 +65,53 @@ static void receive_task(void *arg){
                     line[index++] = (char)c; 
                 }
             }
-
-
-            else {
-                vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
-            }
-        }
-        if (programState == INPUT){
-            int c = getchar_timeout_us(0);
-
-            if (c != PICO_ERROR_TIMEOUT){
-                if (c != '.'&& c  != '-' && c != '\n' && c != ' ' || index >= 4){
+            else if (programState == INPUT){
+                //if (c == '\r') continue; // ignore CR, wait for LF if (ch == '\n') { line[len] = '\0';
+                
+                if (c == '.' || c == '-'){
+                    if (index < 4){
+                        line[index++] = (char)c;
+                    }
+                    else{
+                        printf("too many symbols\n");
+                        index = 0;
+                        programState = IDLE;
+                    }
+                }
+                else if (c == '\n'){
+                    if (index == 4){
+                    line[index] = '\0';
+                    strcpy(morse_message, line);
+                    index = 0;
+                    programState = DISPLAY;
+                    }
+                    else{
+                        printf("Need exactly 4 symbols\n");
+                        index = 0;
+                    }
+                }
+                else{
                     printf("invalid input, reset \n");
                     index = 0;
                     programState = IDLE;
                 }
-
-                else if (c == '\n') {
-                    if (index == 4) {
-                        line[index] = '\0';
-                        strcpy(morse_message, line);
-                        programState = IDLE;
-                        index = 0;
-                    }
-
-                    else {
-                        printf("Need exactly 4 symbols\n");
-                    }
-                }
-
-                else if(index < 4){
-                line[index++] = (char)c;
-                }
-            }
-
-            else {
-                vTaskDelay(pdMS_TO_TICKS(100)); // Wait for new message
             }
         }
+
+    vTaskDelay(pdMS_TO_TICKS(100));
     }
+
 }
 
-static void display_task(void *arg)
-{
+static void display_task(void *arg){
     (void)arg;
-    init_display();
+
     while (1){
         if (programState == DISPLAY){
+            clear_display();
             write_text(morse_message);
+            blink_led(4);
+            printf("check the display \n");
             programState = IDLE;
         }
 
@@ -272,31 +269,31 @@ int main() {
     init_button1();
     init_button2();
     
-    
+    init_display();
+    init_led();
     
     //Nappien painamisesta siirrytään "button"-funktioon, Noora
     gpio_set_irq_enabled_with_callback(BUTTON1, GPIO_IRQ_EDGE_FALL, true, &button);
     gpio_set_irq_enabled_with_callback(BUTTON2, GPIO_IRQ_EDGE_FALL, true, &button);
 
 
-    TaskHandle_t imuTask, printTask, receiveTask , displayTask = NULL;
+    TaskHandle_t imuTask, printTask = NULL;
 
-    BaseType_t receive = xTaskCreate(
+    xTaskCreate(
         receive_task,
         "input",
         DEFAULT_STACK_SIZE,
         NULL,
         2,
-        &receiveTask);
+        NULL);
 
-    BaseType_t display = xTaskCreate(
+    xTaskCreate(
         display_task,
         "output",
         DEFAULT_STACK_SIZE,
         NULL,
         2,
-        &displayTask);
-
+        NULL);
     BaseType_t result = xTaskCreate(imu_task,       // (en) Task function
                 "imu",                              // (en) Name of the task 
                 DEFAULT_STACK_SIZE,                 // (en) Size of the stack for this task (in words). Generally 1024 or 2048
