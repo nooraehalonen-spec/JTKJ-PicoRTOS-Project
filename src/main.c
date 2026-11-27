@@ -17,11 +17,18 @@
 #define INPUT_BUFFER_SIZE 256
 
 //hidastin, ettei nappeja paineta useampaa kertaa
-#define BUTTON_TIMER_MS 100
+#define BUTTON_TIMER_MS 300
+
+//measured value of brightness
+#define BRIGHT 250
+//measured value of darkness
+uint16_t light_level = 0;
+
+int trigger = 0;
 
 char morse_message[256];
 //Add here necessary states
-enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE, DISPLAY, BUZZER, LED};
+enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE, DISPLAY, BUZZER, LED, LIGHT};
 enum state programState = IDLE;
 
 int buzzer_tone[] = {523,659,784};
@@ -170,6 +177,7 @@ static void button(uint which_button, uint32_t event_mask){
             }
         
         else{
+            spaces = 0;
             programState = SENDING;
         }
     }
@@ -244,6 +252,49 @@ static void print_task(){
 Tallentaa imu-dataa imu_number tietorakenteeseen.
 */
 
+//char sending_message1[5000];
+
+static void print_light()
+{
+    while(1){
+        if(programState == LIGHT){
+
+            if (light_level > BRIGHT){
+                printf(".");
+                strcat(sending_message, ".");
+            }
+            else{
+                printf("-");
+                strcat(sending_message, "-");
+            }
+            sleep_ms(4000);
+        }
+
+        if (programState == SPACE){
+
+            printf(" ");
+            strcat(sending_message, " ");
+        }
+
+        if (programState == SENDING){
+            printf("\n");
+            strcat(sending_message, "\n");
+
+            printf(sending_message);
+
+            printf("Message sent.");
+
+            strcpy(sending_message, "");
+
+            trigger = 0;
+
+            programState = IDLE;
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(500));
+    }
+}
+
 static void imu_task(void *arg)
 {
     (void)arg;
@@ -266,6 +317,30 @@ static void imu_task(void *arg)
     }
 }
 
+//light not triggered =0,1 means triggered
+
+
+static void light_task(void *pvParameters){
+    (void)pvParameters;
+
+    while (1){
+        light_level = veml6030_read_light();
+
+        if (programState == IDLE){
+            if (light_level >= BRIGHT && trigger == 0){
+                trigger = 1;
+                spaces = 0;
+                printf("light mode activated \n");
+                sleep_ms(4000);
+                programState = LIGHT;
+            }
+
+        }
+            vTaskDelay(pdMS_TO_TICKS(2000));
+    }
+}
+
+
 int main() {
     stdio_init_all();
     // Uncomment this lines if you want tomääritellään wait till the serial monitor is connected
@@ -275,6 +350,7 @@ int main() {
     init_hat_sdk();
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
     init_buzzer();
+    init_veml6030();
     //alustetaan napit, Noora
     init_button1();
     init_button2();
@@ -288,7 +364,20 @@ int main() {
 
 
     TaskHandle_t imuTask, printTask = NULL;
-
+    xTaskCreate(
+        light_task,
+        "rise_and_shine",
+        DEFAULT_STACK_SIZE,
+        NULL,
+        2,
+        NULL);
+    xTaskCreate(
+        print_light,
+        "rise_and_shine",
+        DEFAULT_STACK_SIZE,
+        NULL,
+        2,
+        NULL);
     xTaskCreate(
         receive_task,
         "input",
