@@ -1,4 +1,4 @@
-
+//Noora & Gleb
 #include <stdio.h>
 #include <string.h>
 
@@ -21,21 +21,26 @@
 
 //measured value of brightness
 #define BRIGHT 250
-//measured value of darkness
+
+//variable used in light measuring
 uint16_t light_level = 0;
 
+//variable used in light related functions
 int trigger = 0;
 
+//received word
 char morse_message[256];
+
 //Add here necessary states
 enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE, DISPLAY, BUZZER, LED, LIGHT};
 enum state programState = IDLE;
 
+//music
 int buzzer_tone[] = {523,659,784};
 
 int buzzer_duration[] = {100,100,300};
 
-
+//music task
 static void buzz_task(void *pvParameters) {
     (void)pvParameters;
 
@@ -51,7 +56,7 @@ static void buzz_task(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
-
+//led task, that shows the received message
 static void actuator(void *pvParameters) {
     (void)pvParameters;
     while (1) {
@@ -78,6 +83,8 @@ static void actuator(void *pvParameters) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
+
+//fill in an array, through serial usb connection, saves result in morse_message
 static void receive_task(void *arg){
     (void)arg;
     char line[INPUT_BUFFER_SIZE];
@@ -112,7 +119,7 @@ static void receive_task(void *arg){
         }
     }
 }}
-
+//shows the message on the display, messages refresh whenever a new message is received
 static void display_task(void *arg){
     (void)arg;
 
@@ -253,7 +260,7 @@ Tallentaa imu-dataa imu_number tietorakenteeseen.
 */
 
 //char sending_message1[5000];
-
+//essentially clone of print task, fine tuned to react ti lihgt, (conditions around brightness)
 static void print_light()
 {
     while(1){
@@ -288,7 +295,7 @@ static void print_light()
 
             trigger = 0;
 
-            programState = IDLE;
+            programState = IDLE;  //buttons will enter accorindgly to light sensor untill a message is sent
         }
 
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -317,9 +324,9 @@ static void imu_task(void *arg)
     }
 }
 
-//light not triggered =0,1 means triggered
+//light not triggered =0,1 means triggered, for debugging
 
-
+//continous measuring of brightness, regradless of state. Light state is triggered for buttons to function differently
 static void light_task(void *pvParameters){
     (void)pvParameters;
 
@@ -327,7 +334,7 @@ static void light_task(void *pvParameters){
         light_level = veml6030_read_light();
 
         if (programState == IDLE){
-            if (light_level >= BRIGHT && trigger == 0){
+            if (light_level >= BRIGHT && trigger == 0){//if very bright then message is received according to light sensor
                 trigger = 1;
                 spaces = 0;
                 printf("light mode activated \n");
@@ -370,7 +377,7 @@ int main() {
         DEFAULT_STACK_SIZE,
         NULL,
         2,
-        NULL);
+        NULL); //in the following tasks handles are never called, so NULL
     xTaskCreate(
         print_light,
         "rise_and_shine",
