@@ -236,6 +236,7 @@ static void print_task(){
                 printf(sending_message);
 
                 printf("Message sent.");
+                trigger =0;
 
                 //tyhjennetään lista 
                 strcpy(sending_message, "");
@@ -265,37 +266,20 @@ static void print_light()
 {
     while(1){
         if(programState == LIGHT){
+            sleep_ms(2000);
 
             if (light_level > BRIGHT){
                 printf(".");
                 strcat(sending_message, ".");
+                spaces =0;
             }
             else{
                 printf("-");
                 strcat(sending_message, "-");
+                spaces =0;
             }
+            programState = IDLE;
             sleep_ms(4000);
-        }
-
-        if (programState == SPACE){
-
-            printf(" ");
-            strcat(sending_message, " ");
-        }
-
-        if (programState == SENDING){
-            printf("\n");
-            strcat(sending_message, "\n");
-
-            printf(sending_message);
-
-            printf("Message sent.");
-
-            strcpy(sending_message, "");
-
-            trigger = 0;
-
-            programState = IDLE;  //buttons will enter accorindgly to light sensor untill a message is sent
         }
 
         vTaskDelay(pdMS_TO_TICKS(500));
@@ -320,7 +304,7 @@ static void imu_task(void *arg)
         //printf("%f %f %f %f %f %f \n", imu_number.ax, imu_number.ay, imu_number.az, imu_number.gx, imu_number.gy, imu_number.gz);
 
         
-        vTaskDelay(pdMS_TO_TICKS(2000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 }
 
@@ -338,7 +322,9 @@ static void light_task(void *pvParameters){
                 trigger = 1;
                 spaces = 0;
                 printf("light mode activated \n");
-                sleep_ms(4000);
+                programState = LIGHT;
+            }
+            else if (trigger == 1) {
                 programState = LIGHT;
             }
 
