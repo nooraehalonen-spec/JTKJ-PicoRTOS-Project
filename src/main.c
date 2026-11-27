@@ -21,9 +21,56 @@
 
 char morse_message[256];
 //Add here necessary states
-enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE, DISPLAY, LED };
+enum state { IDLE=1, INPUT, DOTDASH, SPACE, SENDING, TRANSLATE, DISPLAY, BUZZER, LED};
 enum state programState = IDLE;
 
+int buzzer_tone[] = {523,659,784};
+
+int buzzer_duration[] = {100,100,300};
+
+
+static void buzz_task(void *pvParameters) {
+    (void)pvParameters;
+
+    while (1) {
+        if (programState == BUZZER) {
+            for (int i=0; i<3; i++){
+            buzzer_play_tone(buzzer_tone[i], buzzer_duration[i]);
+            sleep_ms(1000);
+            }
+            programState = DISPLAY;
+        }
+        
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
+
+static void actuator(void *pvParameters) {
+    (void)pvParameters;
+    while (1) {
+        if (programState == LED){
+            for (int i = 0; morse_message[i] != '\0'; i++){
+                if (morse_message[i] == '.'){
+                    toggle_red_led();
+                    sleep_ms(200);
+                    toggle_red_led();
+                    sleep_ms(200);
+                }
+                else if (morse_message[i] == '-'){
+                    toggle_red_led();
+                    sleep_ms(600);
+                    toggle_red_led();
+                    sleep_ms(200);
+                }
+                else if (morse_message[i] == ' '){
+                    sleep_ms(200);
+                }
+            }
+            programState = IDLE;
+        }
+        vTaskDelay(pdMS_TO_TICKS(1000));
+    }
+}
 static void receive_task(void *arg){
     (void)arg;
     char line[INPUT_BUFFER_SIZE];
@@ -41,7 +88,7 @@ static void receive_task(void *arg){
                 line[index] = '\0'; 
                 strcpy(morse_message, line);
                 index = 0; // Wait for new message
-                programState = DISPLAY;
+                programState = BUZZER;
             }
             else if(index < INPUT_BUFFER_SIZE - 1){
                 line[index++] = (char)c;
@@ -66,9 +113,8 @@ static void display_task(void *arg){
         if (programState == DISPLAY){
             clear_display();
             write_text(morse_message);
-            blink_led(4);
             printf("check the display \n");
-            programState = IDLE;
+            programState = LED;
         }
 
         vTaskDelay(pdMS_TO_TICKS(1000));
@@ -228,7 +274,7 @@ int main() {
     }*/ 
     init_hat_sdk();
     sleep_ms(300); //Wait some time so initialization of USB and hat is done.
-
+    init_buzzer();
     //alustetaan napit, Noora
     init_button1();
     init_button2();
@@ -250,7 +296,20 @@ int main() {
         NULL,
         2,
         NULL);
-
+    xTaskCreate(
+        actuator,
+        "input",
+        DEFAULT_STACK_SIZE,
+        NULL,
+        2,
+        NULL);
+    xTaskCreate(
+        buzz_task,
+        "input",
+        DEFAULT_STACK_SIZE,
+        NULL,
+        2,
+        NULL);
     xTaskCreate(
         display_task,
         "output",
